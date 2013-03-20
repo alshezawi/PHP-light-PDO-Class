@@ -37,7 +37,7 @@ class lpdo extends PDO
 			echo 'Connection failed: ' . $e->getMessage();
 		}
 	}
-
+	
 	/**
 	 * 
 	 * @Function : createdsn;
@@ -46,7 +46,7 @@ class lpdo extends PDO
 	 */
 	private function createdsn($options)
 	{
-		return $options['dbtype'] . ':host=' . $options['host'] . ';dbname=' . $options['dbname'];
+		return $options['dbtype'] . ':host=' . $options['host'] . ';dbname=' . $options['dbname'] . ';port=' . $options['port'];
 	}
 
 	/**
