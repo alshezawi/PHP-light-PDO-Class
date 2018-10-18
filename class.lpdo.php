@@ -101,7 +101,7 @@ class lpdo extends PDO
 					{
 						$v = '\'' . $v . '\'';
 					}
-					$_cdta[] = ' ' . $k . ' ' . $oper . ' ' . $v . ' ' ;
+					$_cdta[] = ' `' . $k . '` ' . $oper . ' ' . $v . ' ' ;
 				}
 				else if (is_array($v))
 				{
@@ -109,6 +109,10 @@ class lpdo extends PDO
 				}
 			}
 			$cdts .= implode($logc, $_cdta);
+		}
+		else if (is_string($condition))
+		{
+			$cdts = $condition;
 		}
 		return $cdts;
 	}
@@ -307,5 +311,6 @@ class lpdo extends PDO
 	{
 		$this->tail = ' limit ' . $start . ', ' . $length;
 	}
+
 }
 ?>
