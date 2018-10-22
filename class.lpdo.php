@@ -17,6 +17,8 @@ class lpdo extends PDO
 	private $charset = 'UTF8';
 	private $options;
 
+	const DEFAULT_LOGIC = 'AND';
+
 	/**
 	 * 
 	 * @Function : __construct;
@@ -60,11 +62,11 @@ class lpdo extends PDO
 		$fields = array();
 		if (is_int(key($data)))
 		{
-			$fields = implode(',', $data);
+			$fields = '`' . implode('`,`', $data) . '`';
 		}
 		else if (!empty($data))
 		{
-			$fields = implode(',', array_keys($data));
+			$fields = '`' . implode('`,`', array_keys($data)) . '`';
 		}
 		else
 		{
@@ -79,9 +81,12 @@ class lpdo extends PDO
 	 * @Param  $ : $condition Array, $oper String, $logc String;
 	 * @Return String ;
 	 */
-	private function get_condition($condition, $oper = '=', $logc = 'AND')
+	private function get_condition($condition)
 	{
 		$cdts = '';
+		$logc = '';
+		$oper = '=';
+
 		if (empty($condition))
 		{
 			return $cdts = '';
@@ -93,22 +98,25 @@ class lpdo extends PDO
 			{
 				if (!is_array($v))
 				{
-					if (strtolower($oper) == 'like')
-					{
-						$v = '\'%' . $v . '%\'';
-					}
-					else if (is_string($v))
+					if (is_string($v))
 					{
 						$v = '\'' . $v . '\'';
 					}
-					$_cdta[] = ' `' . $k . '` ' . $oper . ' ' . $v . ' ' ;
+
+					$logc = count($_cdta) == 0 ? '' : ' ' . self::DEFAULT_LOGIC;
+					$_cdta[] = $logc . ' `' . $k . '` ' . $oper . ' ' . $v . ' ';
 				}
 				else if (is_array($v))
 				{
-					$_cdta[] = $this->split_condition($k, $v);
+					$logc = empty($v[2]) ? self::DEFAULT_LOGIC : $v[2];
+					$sub_condition = trim($this->split_condition($k, $v));
+					$where = substr($sub_condition, strlen($logc));
+					$logc = count($_cdta) == 0 ? '' : $logc;
+
+					$_cdta[] = " $logc (" . $where . ")";
 				}
 			}
-			$cdts .= implode($logc, $_cdta);
+			$cdts .= implode('', $_cdta);
 		}
 		else if (is_string($condition))
 		{
@@ -125,24 +133,53 @@ class lpdo extends PDO
 	 */
 	private function split_condition($field, $cdt)
 	{
-		$cdts = array();
-		$oper = empty($cdt[1]) ? '=' : $cdt[1];
-		$logc = empty($cdt[2]) ? 'AND' : $cdt[2];
-		if (!is_array($cdt[0]))
+		if (empty($cdt)) 
 		{
-			$cdt[0] = is_string($cdt[0]) ? "'$cdt[0]'" : $cdt[0];
+			return '';
 		}
-		else if (is_array($cdt[0]) || strtoupper(trim($cdt[1])) == 'IN')
+		else if (is_string($cdt))
 		{
-			$cdt[0] = '(' . implode(',', $cdt[0]) . ')';
+			return self::DEFAULT_LOGIC . " `$field` = '{$cdt}' ";
+		}
+		else if (is_numeric($cdt))
+		{
+			return self::DEFAULT_LOGIC . " `$field` = {$cdt} ";
 		}
 
-		$cdta[] = " $field $oper {$cdt[0]} ";
-		if (!empty($cdt[3]))
+		$cdts = '';
+		$cdta = array();
+
+		$val =  empty($cdt[0]) && is_string($cdt[0]) ? '' : $cdt[0];
+		$oper = empty($cdt[1]) ? '=' : $cdt[1];
+		$logc = empty($cdt[2]) ? 'AND' : $cdt[2];
+		$options = empty($cdt[3]) ? NULL : $cdt[3];
+
+		if (!is_array($val))
 		{
-			$cdta[] = $this->get_condition($cdt[3]);
+			$val = is_string($val) ? "'$val'" : $val;
 		}
-		$cdts = ' ( ' . implode($logc, $cdta) . ' ) ';
+		else if (is_array($val) || strtoupper(trim($oper)) == 'IN')
+		{
+			$val = '(' . implode(',', $val) . ')';
+		}
+
+		$cdta[] = "$logc `$field` $oper {$val} ";
+
+		if (!empty($options) 
+			&& is_array($options) 
+			&& count($options) == 1) 
+		{
+			$f = '';
+			$opt = array();
+			foreach ($options as $key => $value) {
+				$f = $key;
+				$opt = $value;
+				break;
+			}
+			$cdta[] = $this->split_condition($f, $opt);
+		}
+
+		$cdts = implode('', $cdta);
 		return $cdts;
 	}
 
@@ -174,8 +211,9 @@ class lpdo extends PDO
 	{
 		$fields = $this->get_fields($column);
 		$cdts = $this->get_condition($condition);
-		$where = empty($condition) ? '' : ' where ' . $cdts;
-		$this->sql = 'select ' . $fields . ' from ' . $table . $where;
+		$where = empty($condition) ? '' : ' WHERE ' . $cdts;
+		$this->sql = 'SELECT ' . $fields . ' FROM ' . $table . $where;
+		echo $this->sql . "\n";
 		try
 		{
 			$this->sql .= $this->tail;
@@ -223,7 +261,7 @@ class lpdo extends PDO
 	public function insert($table, $data)
 	{
 		list($strf, $strd) = $this->get_fields_datas($data);
-		$this->sql = 'insert into `' . $table . '` (' . $strf . ') values (' . $strd . '); ';
+		$this->sql = 'INSERT INTO `' . $table . '` (' . $strf . ') VALUES (' . $strd . '); ';
 		return $this->exec($this->sql, __METHOD__);
 	}
 
@@ -242,7 +280,7 @@ class lpdo extends PDO
 			$arrd[] = "`$f` = '$d'";
 		}
 		$strd = implode(',', $arrd);
-		$this->sql = 'update ' . $table . ' set ' . $strd . ' where ' . $cdt;
+		$this->sql = 'UPDATE `' . $table . '` SET ' . $strd . ' WHERE ' . $cdt;
 		return $this->exec($this->sql, __METHOD__);
 	}
 
@@ -277,7 +315,7 @@ class lpdo extends PDO
 	public function delete($table, $condition)
 	{
 		$cdt = $this->get_condition($condition);
-		$this->sql = 'delete from ' . $table . ' where ' . $cdt;
+		$this->sql = 'DELETE FROM `' . $table . '` WHERE ' . $cdt;
 		return $this->exec($this->sql, __METHOD__);
 	}
 
@@ -292,6 +330,7 @@ class lpdo extends PDO
 		try
 		{
 			$this->sql = $sql . $this->tail;
+			echo $this->sql . "\n";
 			$efnum = parent::exec($this->sql);
 		}
 		catch(PDOException $e)
@@ -309,7 +348,7 @@ class lpdo extends PDO
 	 */
 	public function set_limit($start = 0, $length = 20)
 	{
-		$this->tail = ' limit ' . $start . ', ' . $length;
+		$this->tail = ' LIMIT ' . $start . ', ' . $length;
 	}
 
 }
