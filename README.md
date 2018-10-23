@@ -8,6 +8,7 @@ A PHP light Class of PDO extend, esay to connect MYSQL and CRUD operate
 
 Require
 ----------
+PHP 5.1+
 php pdo extend.
 
 Change Log
@@ -145,6 +146,11 @@ $result = $db->save('yourtable', array('name' => 'real author'), 'id > 1');
 
 
 ```
+
+NOTE 
+----------
+Take your own risk, If use 'String' Type as a condition parameter.
+
 
 *See file: usage.php*
 

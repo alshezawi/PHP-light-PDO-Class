@@ -8,4 +8,5 @@ $config['Database']['port'] = 3306;
 $config['Database']['username'] = 'yourusername';
 $config['Database']['password'] = 'yourpassword';
 $config['Database']['charset'] = 'utf8';
+$config['Database']['prepare'] = true; // use PDO prepare statement, Default is true.
 ?>
