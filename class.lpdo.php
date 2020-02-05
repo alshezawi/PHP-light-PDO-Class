@@ -296,6 +296,38 @@ class lpdo extends PDO
         return $rs;
     }
 
+
+     /**
+     *
+     * @Function : get_sum;
+     * @Param  $ : $table String, $condition Array, $getRes Boolean, $sumColumn String;
+     * @Return float ;
+     */
+    public function get_sum($table, $condition = array(), $getRes = false ,$sumcol)
+    {
+        $this->use_prepare && $this->prepare_reset();
+        
+        $cdts = $this->get_condition($condition);
+        $where = empty($condition) ? '' : ' WHERE ' . $cdts;
+        $this->sql = 'SELECT SUM(' . $sumcol . ') as '.$sumcol.' FROM ' . $table . $where;
+        $rs = array();
+        $sumResult = 0;
+        try {
+            
+                $this->sql .= $this->tail;
+                $statement = $this->prepare($this->sql);
+                $statement->execute($this->prepare_values);
+                $rs = $statement->fetch();
+                $sumResult = $rs[0]==null ? 0 : (float)$rs[0];
+            
+        }
+        catch (PDOException $e) {
+            trigger_error("get_rows: ", E_USER_ERROR);
+            echo $e->getMessage() . "<br/>\n";
+        }
+        return $sumResult;
+    }
+
     /**
      *
      * @Function : insert;
